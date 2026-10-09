@@ -1,0 +1,10 @@
+# Game files: bring your own copy (see README).
+/game/
+# Recompiled game code: generated locally from your own default.xex.
+/generated/*
+!/generated/rexglue.cmake
+# Build output, logs and scratch.
+/out/
+/work/
+*.log
+/skate2.toml

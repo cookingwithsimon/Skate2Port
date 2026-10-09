@@ -1,0 +1,232 @@
+# Function boundary overrides for Skate 2 codegen.
+
+# Redirect the CRT setjmp/longjmp to native versions. Without this the
+# recompiled setjmp stub returns non-zero, so luaD_rawrunprotected never runs
+# f_luaopen and the Lua state is left uninitialised.
+setjmp_address = 0x82CDE7C0
+longjmp_address = 0x82C85590
+
+[functions]
+
+# Tail-branch target from 0x82A7C06C that analysis misses.
+"0x82A7B3B0" = {}
+
+# Interior entry points reached through indirect calls (found at runtime).
+"0x82A72EF0" = {}
+
+# Function starts referenced only from data (vtables / callback tables),
+# found by tools/scan_data_ptrs.py. Analysis misses these because the
+# vtable scan finds nothing in Skate 2. Entries pointing at import thunk
+# records (opcode 0) are excluded.
+"0x823134A0" = {}
+"0x82313958" = {}
+"0x82346878" = {}
+"0x82347DB8" = {}
+"0x82349B48" = {}
+"0x82367930" = {}
+"0x8239C288" = {}
+"0x8239F6D0" = {}
+"0x823A0750" = {}
+"0x82414F70" = {}
+"0x82461620" = {}
+"0x8246F1AC" = {}
+"0x82474850" = {}
+"0x82482F80" = {}
+"0x82485580" = {}
+"0x82485618" = {}
+"0x824D8938" = {}
+"0x824D8950" = {}
+"0x824EA808" = {}
+"0x824EA810" = {}
+"0x824EA858" = {}
+"0x82509690" = {}
+"0x8251EF08" = {}
+"0x8251EF18" = {}
+"0x8251EF28" = {}
+"0x82528210" = {}
+"0x82528B30" = {}
+"0x82538BA8" = {}
+"0x8253C988" = {}
+"0x82540270" = {}
+"0x8254C090" = {}
+"0x8256B190" = {}
+"0x8257A478" = {}
+"0x8258D3D0" = {}
+"0x82593020" = {}
+"0x82593040" = {}
+"0x825A0A08" = {}
+"0x825A0A28" = {}
+"0x825B0A20" = {}
+"0x825B0A38" = {}
+"0x825C0740" = {}
+"0x8262D750" = {}
+"0x8262D768" = {}
+"0x8262DDA8" = {}
+"0x82630010" = {}
+"0x8263F5C0" = {}
+"0x8263F5D8" = {}
+"0x826420B0" = {}
+"0x826420B8" = {}
+"0x8264341C" = {}
+"0x8264A2F0" = {}
+"0x8268CBD0" = {}
+"0x826A6544" = {}
+"0x826BFBB0" = {}
+"0x826C5B78" = {}
+"0x827B24D8" = {}
+"0x827E01B8" = {}
+"0x82818D10" = {}
+"0x8281C050" = {}
+"0x8281C088" = {}
+"0x8288FCF0" = {}
+"0x8288FD00" = {}
+"0x8288FD08" = {}
+"0x8288FD10" = {}
+"0x8288FD18" = {}
+"0x828A40D0" = {}
+"0x828A4168" = {}
+"0x828BE8F0" = {}
+"0x828C5620" = {}
+"0x828D8E98" = {}
+"0x828D8EB0" = {}
+"0x828D8F18" = {}
+"0x828D8F70" = {}
+"0x828DEEE8" = {}
+"0x828DF1B0" = {}
+"0x828DF1E8" = {}
+"0x828DF548" = {}
+"0x828EBF40" = {}
+"0x828F3790" = {}
+"0x828F37A8" = {}
+"0x828F7088" = {}
+"0x828F70A0" = {}
+"0x828F73A0" = {}
+"0x828F73B8" = {}
+"0x828F73D0" = {}
+"0x828F73E8" = {}
+"0x829098F8" = {}
+"0x8290DFB8" = {}
+"0x8290DFD0" = {}
+"0x8291EDC8" = {}
+"0x8291EDD0" = {}
+"0x8291EDD8" = {}
+"0x8291EDF0" = {}
+"0x8291EE18" = {}
+"0x8291EE28" = {}
+"0x8291EE40" = {}
+"0x8291EE58" = {}
+"0x8291EE68" = {}
+"0x8291EEA0" = {}
+"0x82956110" = {}
+"0x829E8F34" = {}
+"0x829E9150" = {}
+"0x829E9180" = {}
+"0x82A0D5E8" = {}
+"0x82A1B5B0" = {}
+"0x82A72EE0" = {}
+"0x82A72EE8" = {}
+"0x82A7AF00" = {}
+"0x82A7AF30" = {}
+"0x82A7C008" = {}
+"0x82A7C018" = {}
+"0x82A7C038" = {}
+"0x82A7C040" = {}
+"0x82A7C050" = {}
+"0x82A7C058" = {}
+"0x82A7C060" = {}
+"0x82A80240" = {}
+"0x82A80288" = {}
+"0x82AA6BF8" = {}
+"0x82AA6C38" = {}
+"0x82AA8670" = {}
+"0x82AD1C58" = {}
+"0x82B05070" = {}
+"0x82B10EA8" = {}
+"0x82B111B0" = {}
+"0x82B1F910" = {}
+"0x82B1F950" = {}
+"0x82B4B658" = {}
+"0x82B4B670" = {}
+"0x82B4B688" = {}
+"0x82B4BA88" = {}
+"0x82B4BAA0" = {}
+"0x82B4BAB8" = {}
+"0x82B51AE8" = {}
+"0x82BC6420" = {}
+"0x82BFC7C8" = {}
+"0x82BFC7F0" = {}
+"0x82BFC7F8" = {}
+"0x82BFC810" = {}
+"0x82BFC838" = {}
+"0x82BFC840" = {}
+"0x82BFC848" = {}
+"0x82BFC878" = {}
+"0x82BFC898" = {}
+"0x82BFD460" = {}
+"0x82BFD490" = {}
+"0x82C0ECA8" = {}
+"0x82C1A0B8" = {}
+"0x82C1A0C8" = {}
+"0x82C1A108" = {}
+"0x82C1A160" = {}
+"0x82C1A1B0" = {}
+"0x82C1A228" = {}
+"0x82C70DB4" = {}
+"0x82C752C0" = {}
+"0x82C76A3C" = {}
+"0x82C76BA4" = {}
+"0x82C76BB4" = {}
+"0x82C800D8" = {}
+"0x82C8481C" = {}
+"0x82C84CD8" = {}
+"0x82C86544" = {}
+"0x82C88BF8" = {}
+"0x82C8A7E0" = {}
+"0x82C8A830" = {}
+"0x82C8D420" = {}
+"0x82C8D6B8" = {}
+"0x82C8D950" = {}
+"0x82C8D99C" = {}
+"0x82C8E394" = {}
+"0x82C930AC" = {}
+"0x82C93F18" = {}
+"0x82C94308" = {}
+"0x82C97290" = {}
+
+# Callbacks whose addresses are built in code with lis/addi, found by
+# tools/scan_code_ptrs.py.
+"0x8250F978" = {}
+"0x8260E120" = {}
+"0x827B24B8" = {}
+"0x827E4AA0" = {}
+"0x827E4DE8" = {}
+"0x827E4FF0" = {}
+"0x827E52B8" = {}
+"0x827E5F90" = {}
+"0x827E6170" = {}
+"0x827E6308" = {}
+"0x827E6BE0" = {}
+"0x827E6E00" = {}
+"0x827E7410" = {}
+"0x827E7708" = {}
+"0x827E7B68" = {}
+"0x827E7E48" = {}
+"0x827E7FC0" = {}
+"0x827E81B0" = {}
+"0x827E82E0" = {}
+"0x827E8548" = {}
+"0x827E8678" = {}
+"0x827E8A98" = {}
+"0x827E8C18" = {}
+"0x8291EDB8" = {}
+"0x8291EDF8" = {}
+"0x8291EE08" = {}
+"0x8291EE90" = {}
+"0x82B467E8" = {}
+"0x82C84A80" = {}
+
+# Jump tables whose size analysis gets wrong (index has no bounds check).
+[[switch_tables]]
+address = 0x82696B34 # sub_82695938, table at 0x82696B38 has 5 entries
+register = 11
+labels = [0x82696B4C, 0x82696B4C, 0x82696B4C, 0x82696B4C, 0x82696B4C]

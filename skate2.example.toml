@@ -1,0 +1,21 @@
+# Copy this file next to skate2.exe as skate2.toml and edit game_data_root.
+game_data_root = 'C:/path/to/Skate2Port/game'
+fullscreen = false
+log_level = 'info'
+
+# Keyboard controls (keyboard input is off unless mnk_mode is true).
+mnk_mode = true
+keybind_a = 'Space'
+keybind_b = 'Control'
+keybind_dpad_down = 'Down'
+keybind_dpad_left = 'Left'
+keybind_dpad_right = 'Right'
+keybind_dpad_up = 'Up'
+keybind_lstick_down = 'S'
+keybind_lstick_left = 'A'
+keybind_lstick_press = 'Z'
+keybind_lstick_right = 'D'
+keybind_lstick_up = 'W'
+keybind_start = 'Return'
+keybind_x = 'Shift'
+keybind_y = 'T'

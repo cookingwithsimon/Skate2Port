@@ -1,0 +1,144 @@
+diff --git a/src/codegen/builders/vector.cpp b/src/codegen/builders/vector.cpp
+index e98641f..8e2589b 100644
+--- a/src/codegen/builders/vector.cpp
++++ b/src/codegen/builders/vector.cpp
+@@ -1264,14 +1264,17 @@ bool build_vpkuhus(BuilderContext& ctx) {
+   // NOTE(tomc): _mm_packus_epi16 treats inputs as signed, so we need custom saturation for
+   // unsigned. Unsigned halfwords >= 0x8000 would be interpreted as negative and clamped to 0
+   // instead of 0xFF.
++  // Sources are copied first: vD often aliases vA or vB, and the per-byte stores would
++  // otherwise overwrite halfwords that later iterations still read.
++  ctx.println("\t{{ PPCVRegister a = {}, b = {};", ctx.v(ctx.insn.operands[1]),
++              ctx.v(ctx.insn.operands[2]));
+   for (size_t i = 0; i < 8; i++) {
+-    ctx.println("\t{}.u8[{}] = {}.u16[{}] > 0xFF ? 0xFF : (uint8_t){}.u16[{}];",
+-                ctx.v(ctx.insn.operands[0]), 15 - i, ctx.v(ctx.insn.operands[1]), 7 - i,
+-                ctx.v(ctx.insn.operands[1]), 7 - i);
+-    ctx.println("\t{}.u8[{}] = {}.u16[{}] > 0xFF ? 0xFF : (uint8_t){}.u16[{}];",
+-                ctx.v(ctx.insn.operands[0]), 7 - i, ctx.v(ctx.insn.operands[2]), 7 - i,
+-                ctx.v(ctx.insn.operands[2]), 7 - i);
++    ctx.println("\t{}.u8[{}] = a.u16[{}] > 0xFF ? 0xFF : (uint8_t)a.u16[{}];",
++                ctx.v(ctx.insn.operands[0]), 15 - i, 7 - i, 7 - i);
++    ctx.println("\t{}.u8[{}] = b.u16[{}] > 0xFF ? 0xFF : (uint8_t)b.u16[{}];",
++                ctx.v(ctx.insn.operands[0]), 7 - i, 7 - i, 7 - i);
+   }
++  ctx.println("\t}}");
+   return true;
+ }
+ 
+@@ -1292,14 +1295,17 @@ bool build_vpkuwus(BuilderContext& ctx) {
+ 
+   // NOTE(tomc): _mm_packus_epi32 treats inputs as signed, so we need custom saturation for unsigned
+   // Saturate each u32 to [0, 0xFFFF], then pack to u16
++  // Sources are copied first: vD often aliases vA or vB (e.g. vpkuwus v0,v12,v0), and the
++  // per-halfword stores would otherwise overwrite words that later iterations still read.
++  ctx.println("\t{{ PPCVRegister a = {}, b = {};", ctx.v(ctx.insn.operands[1]),
++              ctx.v(ctx.insn.operands[2]));
+   for (size_t i = 0; i < 4; i++) {
+-    ctx.println("\t{}.u16[{}] = {}.u32[{}] > 0xFFFF ? 0xFFFF : (uint16_t){}.u32[{}];",
+-                ctx.v(ctx.insn.operands[0]), 7 - i, ctx.v(ctx.insn.operands[1]), 3 - i,
+-                ctx.v(ctx.insn.operands[1]), 3 - i);
+-    ctx.println("\t{}.u16[{}] = {}.u32[{}] > 0xFFFF ? 0xFFFF : (uint16_t){}.u32[{}];",
+-                ctx.v(ctx.insn.operands[0]), 3 - i, ctx.v(ctx.insn.operands[2]), 3 - i,
+-                ctx.v(ctx.insn.operands[2]), 3 - i);
++    ctx.println("\t{}.u16[{}] = a.u32[{}] > 0xFFFF ? 0xFFFF : (uint16_t)a.u32[{}];",
++                ctx.v(ctx.insn.operands[0]), 7 - i, 3 - i, 3 - i);
++    ctx.println("\t{}.u16[{}] = b.u32[{}] > 0xFFFF ? 0xFFFF : (uint16_t)b.u32[{}];",
++                ctx.v(ctx.insn.operands[0]), 3 - i, 3 - i, 3 - i);
+   }
++  ctx.println("\t}}");
+   return true;
+ }
+ 
+diff --git a/src/system/function_dispatcher.cpp b/src/system/function_dispatcher.cpp
+index 67f7070..d3f6d6e 100644
+--- a/src/system/function_dispatcher.cpp
++++ b/src/system/function_dispatcher.cpp
+@@ -18,6 +18,7 @@
+ #include <rex/logging.h>
+ #include <rex/perf/counter.h>
+ #include <rex/memory.h>
++#include <rex/memory/utils.h>
+ #include <rex/ppc/context.h>
+ #include <rex/runtime.h>
+ #include <rex/system/function_dispatcher.h>
+@@ -34,9 +35,23 @@ FunctionDispatcher* GetBoundFunctionDispatcher() {
+ 
+ }  // namespace
+ 
+-static void InvalidFunctionTrap(PPCContext& ctx, uint8_t* /*base*/) {
+-  REX_FATAL("Call to invalid or unregistered function at guest address 0x{:08X}",
+-            ctx.last_indirect_target);
++static void InvalidFunctionTrap(PPCContext& ctx, uint8_t* base) {
++  // Skate2Port: walk the guest back chain (saved LR sits 8 bytes below each
++  // caller frame) so crashes can be traced to their call sites.
++  REXSYS_ERROR("Unregistered call to 0x{:08X} (lr=0x{:08X}), guest backtrace:",
++               ctx.last_indirect_target, static_cast<uint32_t>(ctx.lr));
++  uint32_t sp = ctx.r1.u32;
++  for (int depth = 0; depth < 16 && sp; ++depth) {
++    uint32_t caller_sp = rex::memory::load_and_swap<uint32_t>(base + sp);
++    if (!caller_sp || caller_sp <= sp) break;
++    uint32_t saved_lr = rex::memory::load_and_swap<uint32_t>(base + caller_sp - 8);
++    REXSYS_ERROR("  guest frame {}: sp=0x{:08X} lr=0x{:08X}", depth, caller_sp, saved_lr);
++    if (!saved_lr) break;  // thread entry: the next frame is unmapped
++    sp = caller_sp;
++  }
++  // Skate2Port: include the caller's return address to locate the call site.
++  REX_FATAL("Call to invalid or unregistered function at guest address 0x{:08X} (lr=0x{:08X})",
++            ctx.last_indirect_target, static_cast<uint32_t>(ctx.lr));
+ }
+ 
+ PPCFunc* ResolveIndirectFunction(uint32_t guest_address) {
+diff --git a/src/ui/imgui_drawer.cpp b/src/ui/imgui_drawer.cpp
+index 50a26d0..fd9ffaf 100644
+--- a/src/ui/imgui_drawer.cpp
++++ b/src/ui/imgui_drawer.cpp
+@@ -387,7 +387,8 @@ void ImGuiDrawer::SetupFonts() {
+     // DirectWrite white-on-black edge
+     // profiles (identity was measurably thinner/dimmer). The *_on_light_
+     // variants below keep gamma 1.0 - dark-on-light needs no correction.
+-    config.RasterizerGamma = 0.62f;
++    // Skate2Port: stock imgui has no RasterizerGamma (fork-only field).
++    // config.RasterizerGamma = 0.62f;
+     config.FontLoaderFlags = ImGuiFreeTypeBuilderFlags_NoHinting;
+     ui_font_ = io.Fonts->AddFontFromMemoryCompressedBase85TTF(
+         GetInterRegularCompressedBase85(), 18.0f, &config);
+@@ -408,7 +409,8 @@ void ImGuiDrawer::SetupFonts() {
+     config_on_light.RasterizerMultiply = 1.0f;
+     // Dark-on-light matches the browser with NO coverage curve (harness fit:
+     // identity beat every contrast/gamma variant once bake==draw size).
+-    config_on_light.RasterizerGamma = 1.0f;
++    // Skate2Port: stock imgui has no RasterizerGamma (fork-only field).
++    // config_on_light.RasterizerGamma = 1.0f;
+     ui_font_on_light_ = io.Fonts->AddFontFromMemoryCompressedBase85TTF(
+         GetInterRegularCompressedBase85(), 18.0f, &config_on_light);
+     ui_font_semibold_on_light_ = io.Fonts->AddFontFromMemoryCompressedBase85TTF(
+@@ -700,7 +702,9 @@ void ImGuiDrawer::RenderDrawLists(ImDrawData* data, UIDrawContext& ui_draw_conte
+ 
+   immediate_drawer_->Begin(ui_draw_context, io.DisplaySize.x, io.DisplaySize.y);
+ 
+-  for (int i = 0; i < data->CmdListsCount; ++i) {
++  // Skate2Port: newer imgui no longer fills the obsolete CmdListsCount, which
++  // left every overlay (on-screen keyboard, FPS counter, menus) undrawn.
++  for (int i = 0; i < data->CmdLists.Size; ++i) {
+     const auto cmd_list = data->CmdLists[i];
+ 
+     ImmediateDrawBatch batch;
+diff --git a/src/ui/window_win.cpp b/src/ui/window_win.cpp
+index f67ae6a..2349eb8 100644
+--- a/src/ui/window_win.cpp
++++ b/src/ui/window_win.cpp
+@@ -1072,6 +1072,13 @@ LRESULT Win32Window::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
+   }
+ 
+   switch (message) {
++    case WM_SYSCOMMAND:
++      // Skate2Port: a lone Alt press would open the system menu and freeze
++      // input; Alt is bound to a controller button. Alt+F4 is unaffected.
++      if ((wParam & 0xFFF0) == SC_KEYMENU) {
++        return 0;
++      }
++      break;
+     case WM_CLOSE:
+     // In case the Windows window was somehow forcibly destroyed without
+     // WM_CLOSE.
