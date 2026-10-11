@@ -50,6 +50,41 @@ index e98641f..8e2589b 100644
    return true;
  }
  
+diff --git a/src/graphics/shared_memory.cpp b/src/graphics/shared_memory.cpp
+index d29ef9b..5f01332 100644
+--- a/src/graphics/shared_memory.cpp
++++ b/src/graphics/shared_memory.cpp
+@@ -135,26 +135,10 @@ void SharedMemory::SetSystemPageBlocksValidWithGpuDataWritten() {
+     return;
+   }
+ 
+-  uint32_t dirty_mask = dirty_blocks_.exchange(0, std::memory_order_relaxed);
+-  uint32_t dirty_count = rex::bit_count(dirty_mask);
+-  if (dirty_count == 0 || dirty_count > 16) {
+-    std::memcpy(staging, system_page_flags_valid_and_gpu_written_.data(),
+-                num_system_page_flags_ * sizeof(uint64_t));
+-  } else {
+-    while (dirty_mask) {
+-      uint32_t block_index;
+-      rex::bit_scan_forward(dirty_mask, &block_index);
+-      dirty_mask &= ~(uint32_t(1) << block_index);
+-      uint32_t entry_offset = block_index * 64;
+-      if (entry_offset >= num_system_page_flags_) {
+-        continue;
+-      }
+-      uint32_t entry_count = std::min(uint32_t(64), num_system_page_flags_ - entry_offset);
+-      std::memcpy(staging + entry_offset,
+-                  system_page_flags_valid_and_gpu_written_.data() + entry_offset,
+-                  entry_count * sizeof(uint64_t));
+-    }
+-  }
++  dirty_blocks_.exchange(0, std::memory_order_relaxed);
++  // Staging is two swaps stale, so a partial copy loses the previous frame's blocks.
++  std::memcpy(staging, system_page_flags_valid_and_gpu_written_.data(),
++              num_system_page_flags_ * sizeof(uint64_t));
+ 
+   uint64_t* old_active = active_valid_flags_.exchange(staging, std::memory_order_acq_rel);
+   staging_valid_flags_.store(old_active, std::memory_order_release);
 diff --git a/src/system/function_dispatcher.cpp b/src/system/function_dispatcher.cpp
 index 67f7070..d3f6d6e 100644
 --- a/src/system/function_dispatcher.cpp

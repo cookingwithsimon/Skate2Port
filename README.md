@@ -20,7 +20,7 @@ Tested with `Skate 2 (USA) (En,Fr)`, title ID `4541087F`, `default.xex` SHA-1 `a
 ## Build
 
 ```bash
-git clone https://github.com/cookingwithsimon/Skate2Port.git
+git clone https://github.com/cookingwithsimon/Skate2Recompiled.git
 ```
 
 ```bash
@@ -84,6 +84,9 @@ F2 toggles the FPS counter.
   - `vpkuhus`/`vpkuwus` produced wrong results when the destination register aliased a source.
   - Unregistered-call crashes log a guest backtrace.
   - One imgui font setting that only exists in the fork's imgui is disabled.
+  - The frame-end refresh of GPU-written page flags always copies the whole table. The partial copy went into a buffer two frames stale and caused alternating-frame flicker once frames got faster.
+- The presets build with `REXGLUE_ENABLE_PERF_COUNTERS=OFF`, which saves about 6% CPU on the GPU thread. Tested at 1x and 2x resolution scale.
+- To update an SDK checkout that has an older patch applied, run `git -C third_party/rexglue-sdk checkout -- src` and then `setup.ps1` again.
 - The SDK pins an imgui commit that no longer exists upstream; `setup.ps1` uses the nearest commit from the same day.
 
 ## Development helpers
